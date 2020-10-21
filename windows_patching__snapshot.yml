@@ -1,0 +1,54 @@
+---
+# tasks file for windows_patching__snapshot.yml
+
+- name: Find The VM Folder
+  vmware_guest_find:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: false
+    name: "{{ inventory_hostname }}"
+  delegate_to: localhost
+  register: vm_location
+
+- name: Get Host Snapshots
+  vmware_guest_snapshot_info:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    datacenter: "{{ vm_location.folders[0].split('/')[1] }}"
+    folder: "{{ vm_location.folders[0] }}"
+    validate_certs: false
+    name: "{{ inventory_hostname }}"
+  delegate_to: localhost
+  register: old_snapshot_info
+
+- name: Create VM Snap
+  vmware_guest_snapshot:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    datacenter: "{{ vm_location.folders[0].split('/')[1] }}"
+    folder: "{{ vm_location.folders[0] }}"
+    validate_certs: false
+    name: "{{ inventory_hostname }}"
+    state: present
+    snapshot_name: snap_pre_update_{{ inventory_hostname }}_{{ lookup('pipe','date +%Y-%m-%d_%H-%M-%S') }}
+    description: Snapshot taken before the OS Upgrade initiated by Foreman
+  delegate_to: localhost
+
+- name: Delete Old Snapshot If Present
+  vmware_guest_snapshot:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    datacenter: "{{ vm_location.folders[0].split('/')[1] }}"
+    folder: "{{ vm_location.folders[0] }}"
+    validate_certs: false
+    name: "{{ inventory_hostname }}"
+    state: absent
+    snapshot_name: "{{ old_snapshot_info.guest_snapshots.current_snapshot.name }}"
+  when: 
+    - old_snapshot_info.guest_snapshots.current_snapshot.name is defined
+  delegate_to: localhost
+

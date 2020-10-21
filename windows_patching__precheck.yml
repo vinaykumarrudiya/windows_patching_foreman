@@ -1,0 +1,38 @@
+---
+- name: Checking os_family and hostgroup values
+  assert:
+    that: (ansible_facts.os_family and ansible_facts.facter_os.release.major) in foreman.hostgroup
+    fail_msg:
+      - "Host facts from Ansible:"
+      - "{{ ansible_facts.os_family }} {{ ansible_facts.facter_os.release.major }}"
+      - "Foreman hostgroup: {{ foreman.hostgroup }}"
+    success_msg:
+      - "Host facts from Ansible:"
+      - "{{ ansible_facts.os_family }} {{ ansible_facts.facter_os.release.major }}"
+      - "Foreman hostgroup: {{ foreman.hostgroup }}"
+
+- name: Checking for updates condition
+  win_updates:
+    category_names:
+      -SecurityUpdates
+      -CriticalUpdates
+      -UpdateRollups
+      -Application
+      -Connectors
+      -DefinitionUpdates
+      -DeveloperKits
+      -FeaturePacks
+      -Guidance
+      -ServicePacks
+      -Tools
+      -Updates
+    state: searched
+  register: windows_patching__patches
+
+- name: Checking windows_patching__patches.reboot_required value
+  assert:
+    that: windows_patching__patches.reboot_required is false
+    fail_msg: windows_patching__patches.reboot_required is true. Execute playbook in reboot mode.
+    success_msg: windows_patching__patches.reboot_required is false
+  when: windows_patching__mode == "install"
+

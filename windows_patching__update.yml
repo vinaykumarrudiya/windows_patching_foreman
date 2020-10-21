@@ -1,0 +1,68 @@
+---
+# tasks file for windows_patching
+
+- block:
+    - name: Installing all security, critical, and rollup updates
+      win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+          - UpdateRollups
+        state: installed
+        reboot: no
+      register: windows_patching__patches
+      when: windows_patching__kb is not defined
+
+    - name: Installing only particular updates based on the KB numbers
+      win_updates:
+        category_name:
+        - SecurityUpdates
+        - CriticalUpdates
+        - UpdateRollups
+        whitelist: "{{ windows_patching__kb }}"
+        state: installed
+        reboot: no
+      register: windows_patching__patches
+      when: windows_patching__kb is defined
+
+    - name: Rebooting the host
+      win_reboot:
+        reboot_timeout: 7200
+      when: windows_patching__reboot == "yes" and windows_patching__patches.reboot_required == true
+
+  when: windows_patching__mode == "install"
+
+- name: Rebooting the host
+  win_reboot:
+    reboot_timeout: 7200
+  when: windows_patching__mode == "reboot"
+
+- name: Checking for updates condition
+  win_updates:
+    category_names:
+      -SecurityUpdates
+      -CriticalUpdates
+      -UpdateRollups
+      -Application
+      -Connectors
+      -DefinitionUpdates
+      -DeveloperKits
+      -FeaturePacks
+      -Guidance
+      -ServicePacks
+      -Tools
+      -Updates
+    state: searched
+  register: windows_patching__patches
+
+- set_fact:
+    windows_patching__summary: "{{ windows_patching__summary | default([]) + [item.value.title] }}"
+  loop: "{{ windows_patching__patches.filtered_updates | dict2items }}"
+
+- set_fact:
+    windows_patching__summary: "{{ windows_patching__summary }}"
+    windows_patching__details: "{{ windows_patching__patches.filtered_updates }}"
+    host_facts: "{{ ansible_facts }}"
+    windows_patching__last_check: "{{ lookup('pipe','date') }}"
+    windows_patching__reboot_required: "{{ windows_patching__patches.reboot_required }}"
+

@@ -1,0 +1,33 @@
+---
+# tasks file for windows_patching
+
+# Attention! If you modify this file execute manually "git pull" command from foreman and smart-proxies. 
+
+- command: git pull
+  args:
+    chdir: /etc/ansible/roles/windows_patching
+  environment:
+    - GIT_SSL_NO_VERIFY: "true"
+  delegate_to: localhost
+  register: windows_patching__git_output
+  become: true
+
+- command: git checkout *
+  args:  
+    chdir: /etc/ansible/roles/windows_patching
+  delegate_to: localhost
+  become: true
+
+- debug:
+    msg: 
+      - "Something changed at remote repository. Changes have been updated."
+      - "{{ windows_patching__git_output.stderr_lines }}"
+      - "{{ windows_patching__git_output.stdout_lines }}"
+  when: windows_patching__git_output.stdout != "Already up-to-date."
+
+- include_tasks: windows_patching__precheck.yml
+
+#- include_tasks: windows_patching__snapshot.yml
+
+- include_tasks: windows_patching__update.yml
+
